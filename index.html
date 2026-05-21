@@ -19,7 +19,7 @@ body{
 }
 
 .container{
-    max-width:900px;
+    max-width:950px;
     margin:auto;
     background:rgba(255,255,255,0.08);
     backdrop-filter:blur(12px);
@@ -56,7 +56,7 @@ input[type=file]{
 
 textarea{
     width:100%;
-    min-height:110px;
+    min-height:130px;
     margin-top:10px;
     padding:14px;
     border:none;
@@ -133,6 +133,23 @@ canvas{
     max-height:300px;
     overflow:auto;
 }
+
+.excludeWrap{
+    display:flex;
+    gap:10px;
+}
+
+.excludeButtons{
+    display:flex;
+    flex-direction:column;
+    gap:10px;
+    width:80px;
+}
+
+.smallBtn{
+    height:60px;
+    font-size:22px;
+}
 </style>
 </head>
 
@@ -158,15 +175,24 @@ canvas{
 
 <input type="file" id="imageInput" multiple accept="image/*">
 
-<h3>제외 단어</h3>
+<h3>제외 문자</h3>
 
-<textarea id="excludeWords">부가세
+<div class="excludeWrap">
+
+<textarea id="excludeWords">※
+부가세
 택배비
-배송비
-합계
-현금
-카드
-사은품</textarea>
+M+</textarea>
+
+<div class="excludeButtons">
+
+<button class="smallBtn" onclick="moveExcludeUp()">▲</button>
+
+<button class="smallBtn" onclick="moveExcludeDown()">▼</button>
+
+</div>
+
+</div>
 
 <button onclick="startOCR()">OCR 시작</button>
 
@@ -177,6 +203,7 @@ canvas{
 <div class="rawBox" id="rawText"></div>
 
 <table id="resultTable">
+
 <thead>
 <tr>
 <th>품명</th>
@@ -187,6 +214,7 @@ canvas{
 </thead>
 
 <tbody></tbody>
+
 </table>
 
 <h3>복사용 결과</h3>
@@ -208,8 +236,8 @@ const COLORS = [
 const SIZES = [
 'FREE','XS','S','M','L','XL','XXL',
 '90','95','100','105','110',
-'230','235','240','245','250','255',
-'260','265','270'
+'230','235','240','245','250',
+'255','260','265','270'
 ];
 
 let capturedImages = [];
@@ -263,9 +291,46 @@ function capturePhoto(){
     alert('촬영 완료');
 }
 
+function moveExcludeUp(){
+
+    const textarea =
+        document.getElementById('excludeWords');
+
+    const lines =
+        textarea.value.split('\n');
+
+    if(lines.length > 1){
+
+        const first = lines.shift();
+
+        lines.push(first);
+
+        textarea.value = lines.join('\n');
+    }
+}
+
+function moveExcludeDown(){
+
+    const textarea =
+        document.getElementById('excludeWords');
+
+    const lines =
+        textarea.value.split('\n');
+
+    if(lines.length > 1){
+
+        const last = lines.pop();
+
+        lines.unshift(last);
+
+        textarea.value = lines.join('\n');
+    }
+}
+
 function shouldExclude(text,rules){
 
     return rules.some(rule=>{
+
         return rule.trim() &&
             text.includes(rule.trim());
     });
@@ -274,6 +339,7 @@ function shouldExclude(text,rules){
 function detectColor(text){
 
     for(const c of COLORS){
+
         if(text.includes(c)){
             return c;
         }
@@ -299,6 +365,10 @@ function detectSize(text){
 
 function detectQuantity(text){
 
+    if(/-\d+$/.test(text)){
+        return 0;
+    }
+
     const match =
         text.match(/(\d+)$/);
 
@@ -321,7 +391,7 @@ function extractProductName(text,color,size){
         name = name.replace(size,'');
     }
 
-    name = name.replace(/\d+$/,'');
+    name = name.replace(/-?\d+$/,'');
     name = name.replace(/\s+/g,' ');
 
     return name.trim();
@@ -353,6 +423,7 @@ function autoRotateAndProcess(imgElement){
         );
 
         src.delete();
+
         src = rotated;
     }
 
@@ -439,14 +510,18 @@ async function runOCR(
                     continue;
                 }
 
+                const quantity =
+                    detectQuantity(line);
+
+                if(quantity === 0){
+                    continue;
+                }
+
                 const color =
                     detectColor(line);
 
                 const size =
                     detectSize(line);
-
-                const quantity =
-                    detectQuantity(line);
 
                 const productName =
                     extractProductName(
