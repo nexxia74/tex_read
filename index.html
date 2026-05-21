@@ -1,85 +1,251 @@
 <!DOCTYPE html>
-quantity:0
-};
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+<title>영수증 OCR 상품 집계기</title>
+
+<script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
+
+<style>
+body{
+    font-family:Arial;
+    margin:0;
+    padding:20px;
+    background:#f3f4f6;
 }
 
-resultMap[key].quantity += quantity;
+.container{
+    max-width:800px;
+    margin:auto;
+    background:white;
+    padding:20px;
+    border-radius:10px;
 }
 
-resolve();
-};
-
-img.src = imageSource;
-});
+button{
+    width:100%;
+    padding:15px;
+    border:none;
+    background:#2563eb;
+    color:white;
+    border-radius:10px;
+    margin-top:10px;
 }
+
+textarea{
+    width:100%;
+    height:120px;
+    margin-top:10px;
+}
+
+table{
+    width:100%;
+    border-collapse:collapse;
+    margin-top:20px;
+}
+
+th,td{
+    border:1px solid #ddd;
+    padding:10px;
+    text-align:center;
+}
+
+th{
+    background:#2563eb;
+    color:white;
+}
+</style>
+</head>
+
+<body>
+
+<div class="container">
+
+<h1>영수증 OCR 상품 집계기</h1>
+
+<input type="file" id="imageInput" multiple accept="image/*">
+
+<h3>제외 단어</h3>
+
+<textarea id="excludeWords">부가세
+택배비
+배송비
+합계</textarea>
+
+<button onclick="startOCR()">OCR 시작</button>
+
+<div id="status"></div>
+
+<table>
+<thead>
+<tr>
+<th>품명</th>
+<th>색상</th>
+<th>사이즈</th>
+<th>총수량</th>
+</tr>
+</thead>
+<tbody id="resultBody"></tbody>
+</table>
+
+<h3>복사용 결과</h3>
+
+<textarea id="copyText"></textarea>
+
+<button onclick="copyResult()">결과 복사</button>
+
+</div>
+
+<script>
+const COLORS = [
+'블랙','화이트','그레이','차콜','네이비',
+'핑크','레드','카키','브라운'
+];
+
+const SIZES = [
+'FREE','XS','S','M','L','XL',
+'90','95','100','105','110'
+];
 
 async function startOCR(){
-const status = document.getElementById('status');
 
-const excludeRules = document.getElementById('excludeWords').value.split('\n');
-const removeRules = document.getElementById('removeWords').value.split('\n');
+    const files = document.getElementById('imageInput').files;
 
-const resultMap = {};
+    const excludeRules =
+        document.getElementById('excludeWords')
+        .value
+        .split('\n');
 
-const files = document.getElementById('imageInput').files;
+    const resultMap = {};
 
-let total = capturedImages.length + files.length;
-let current = 1;
+    for(const file of files){
 
-for(const image of capturedImages){
-status.innerText = `OCR 진행 중 ${current}/${total}`;
+        document.getElementById('status').innerText =
+            `${file.name} OCR 진행 중`;
 
-await runOCR(image,resultMap,excludeRules,removeRules);
+        const result = await Tesseract.recognize(
+            file,
+            'kor+eng'
+        );
 
-current++;
-}
+        const text = result.data.text;
 
-for(const file of files){
-status.innerText = `OCR 진행 중 ${current}/${total}`;
+        const lines = text.split('\n');
 
-const imageURL = URL.createObjectURL(file);
+        for(let line of lines){
 
-await runOCR(imageURL,resultMap,excludeRules,removeRules);
+            line = line.trim();
 
-current++;
-}
+            if(line.length < 2) continue;
 
-renderTable(resultMap);
+            let excluded = false;
 
-status.innerText = '완료';
+            for(const word of excludeRules){
+                if(line.includes(word)){
+                    excluded = true;
+                }
+            }
+
+            if(excluded) continue;
+
+            let color = '';
+
+            for(const c of COLORS){
+                if(line.includes(c)){
+                    color = c;
+                }
+            }
+
+            let size = '';
+
+            for(const s of SIZES){
+                if(line.includes(s)){
+                    size = s;
+                }
+            }
+
+            const qtyMatch = line.match(/(\d+)$/);
+
+            let qty = 1;
+
+            if(qtyMatch){
+                qty = parseInt(qtyMatch[1]);
+            }
+
+            let name = line;
+
+            if(color){
+                name = name.replace(color,'');
+            }
+
+            if(size){
+                name = name.replace(size,'');
+            }
+
+            name = name.replace(/\d+$/,'').trim();
+
+            if(name.length < 2) continue;
+
+            const key = `${name}|${color}|${size}`;
+
+            if(!resultMap[key]){
+                resultMap[key] = {
+                    name,
+                    color,
+                    size,
+                    qty:0
+                };
+            }
+
+            resultMap[key].qty += qty;
+        }
+    }
+
+    renderTable(resultMap);
+
+    document.getElementById('status').innerText =
+        '완료';
 }
 
 function renderTable(data){
-const tbody = document.querySelector('#resultTable tbody');
 
-tbody.innerHTML = '';
+    const body =
+        document.getElementById('resultBody');
 
-let copyText = '';
+    body.innerHTML = '';
 
-Object.values(data).forEach(item=>{
-const tr = document.createElement('tr');
+    let copyText = '';
 
-tr.innerHTML = `
-<td>${item.name}</td>
-<td>${item.color}</td>
-<td>${item.size}</td>
-<td>${item.quantity}</td>
-`;
+    Object.values(data).forEach(item=>{
 
-tbody.appendChild(tr);
+        const tr = document.createElement('tr');
 
-copyText += `${item.name}\t${item.color}\t${item.size}\t${item.quantity}\n`;
-});
+        tr.innerHTML = `
+            <td>${item.name}</td>
+            <td>${item.color}</td>
+            <td>${item.size}</td>
+            <td>${item.qty}</td>
+        `;
 
-document.getElementById('copyText').value = copyText;
+        body.appendChild(tr);
+
+        copyText +=
+            `${item.name}\t${item.color}\t${item.size}\t${item.qty}\n`;
+    });
+
+    document.getElementById('copyText').value =
+        copyText;
 }
 
 function copyResult(){
-const text = document.getElementById('copyText').value;
 
-navigator.clipboard.writeText(text);
+    navigator.clipboard.writeText(
+        document.getElementById('copyText').value
+    );
 
-alert('복사 완료');
+    alert('복사 완료');
 }
 </script>
 
