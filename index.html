@@ -4,57 +4,134 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
-<title>영수증 OCR 상품 집계기</title>
+<title>OCR 상품 집계기 PRO</title>
 
+<script async src="https://docs.opencv.org/4.x/opencv.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
 
 <style>
 body{
-    font-family:Arial;
     margin:0;
     padding:20px;
-    background:#f3f4f6;
+    background:linear-gradient(135deg,#0f172a,#1e293b);
+    font-family:Arial,sans-serif;
+    color:white;
 }
 
 .container{
-    max-width:800px;
+    max-width:900px;
     margin:auto;
-    background:white;
-    padding:20px;
-    border-radius:10px;
+    background:rgba(255,255,255,0.08);
+    backdrop-filter:blur(12px);
+    border-radius:24px;
+    padding:24px;
+    box-shadow:0 8px 32px rgba(0,0,0,0.3);
 }
 
-button{
+h1{
+    text-align:center;
+    margin-bottom:20px;
+    font-size:32px;
+}
+
+h3{
+    margin-top:25px;
+    color:#cbd5e1;
+}
+
+video,img{
     width:100%;
-    padding:15px;
-    border:none;
-    background:#2563eb;
-    color:white;
-    border-radius:10px;
+    border-radius:18px;
     margin-top:10px;
+}
+
+input[type=file]{
+    width:100%;
+    padding:14px;
+    border:none;
+    border-radius:16px;
+    background:#0f172a;
+    color:white;
 }
 
 textarea{
     width:100%;
-    height:120px;
+    min-height:110px;
     margin-top:10px;
+    padding:14px;
+    border:none;
+    border-radius:16px;
+    background:#0f172a;
+    color:white;
+    font-size:15px;
+    box-sizing:border-box;
+}
+
+button{
+    width:100%;
+    padding:16px;
+    margin-top:14px;
+    border:none;
+    border-radius:18px;
+    background:linear-gradient(135deg,#14b8a6,#06b6d4);
+    color:white;
+    font-size:17px;
+    font-weight:bold;
+    cursor:pointer;
+    transition:0.2s;
+}
+
+button:hover{
+    transform:scale(1.02);
 }
 
 table{
     width:100%;
     border-collapse:collapse;
     margin-top:20px;
-}
-
-th,td{
-    border:1px solid #ddd;
-    padding:10px;
-    text-align:center;
+    overflow:hidden;
+    border-radius:18px;
 }
 
 th{
-    background:#2563eb;
+    background:#14b8a6;
+    padding:14px;
+}
+
+td{
+    background:rgba(255,255,255,0.05);
+    padding:12px;
+    text-align:center;
+    border-bottom:1px solid rgba(255,255,255,0.08);
+}
+
+.status{
+    margin-top:15px;
+    color:#67e8f9;
+    font-weight:bold;
+}
+
+canvas{
+    display:none;
+}
+
+.editInput{
+    width:95%;
+    padding:8px;
+    border:none;
+    border-radius:10px;
+    background:#1e293b;
     color:white;
+}
+
+.rawBox{
+    background:#0f172a;
+    padding:15px;
+    border-radius:16px;
+    margin-top:15px;
+    white-space:pre-wrap;
+    max-height:300px;
+    overflow:auto;
 }
 </style>
 </head>
@@ -63,7 +140,21 @@ th{
 
 <div class="container">
 
-<h1>영수증 OCR 상품 집계기</h1>
+<h1>OCR 상품 집계기 PRO</h1>
+
+<h3>실시간 카메라</h3>
+
+<video id="video" autoplay playsinline></video>
+
+<button onclick="capturePhoto()">사진 촬영</button>
+
+<canvas id="canvas"></canvas>
+
+<img id="preview">
+
+<hr>
+
+<h3>사진 여러 장 업로드</h3>
 
 <input type="file" id="imageInput" multiple accept="image/*">
 
@@ -72,13 +163,20 @@ th{
 <textarea id="excludeWords">부가세
 택배비
 배송비
-합계</textarea>
+합계
+현금
+카드
+사은품</textarea>
 
 <button onclick="startOCR()">OCR 시작</button>
 
-<div id="status"></div>
+<div class="status" id="status"></div>
 
-<table>
+<h3>OCR 원본 결과</h3>
+
+<div class="rawBox" id="rawText"></div>
+
+<table id="resultTable">
 <thead>
 <tr>
 <th>품명</th>
@@ -87,7 +185,8 @@ th{
 <th>총수량</th>
 </tr>
 </thead>
-<tbody id="resultBody"></tbody>
+
+<tbody></tbody>
 </table>
 
 <h3>복사용 결과</h3>
@@ -99,19 +198,298 @@ th{
 </div>
 
 <script>
+
 const COLORS = [
-'블랙','화이트','그레이','차콜','네이비',
-'핑크','레드','카키','브라운'
+'블랙','화이트','그레이','차콜',
+'네이비','핑크','레드','카키',
+'브라운','베이지','아이보리'
 ];
 
 const SIZES = [
-'FREE','XS','S','M','L','XL',
-'90','95','100','105','110'
+'FREE','XS','S','M','L','XL','XXL',
+'90','95','100','105','110',
+'230','235','240','245','250','255',
+'260','265','270'
 ];
+
+let capturedImages = [];
+
+async function initCamera(){
+
+    try{
+
+        const stream =
+            await navigator.mediaDevices.getUserMedia({
+                video:{
+                    facingMode:'environment'
+                }
+            });
+
+        document.getElementById('video').srcObject =
+            stream;
+
+    }catch(e){
+
+        alert('카메라 접근 실패');
+    }
+}
+
+initCamera();
+
+function capturePhoto(){
+
+    const video =
+        document.getElementById('video');
+
+    const canvas =
+        document.getElementById('canvas');
+
+    const ctx =
+        canvas.getContext('2d');
+
+    canvas.width = video.videoWidth;
+    canvas.height = video.videoHeight;
+
+    ctx.drawImage(video,0,0);
+
+    const data =
+        canvas.toDataURL('image/jpeg');
+
+    capturedImages.push(data);
+
+    document.getElementById('preview').src =
+        data;
+
+    alert('촬영 완료');
+}
+
+function shouldExclude(text,rules){
+
+    return rules.some(rule=>{
+        return rule.trim() &&
+            text.includes(rule.trim());
+    });
+}
+
+function detectColor(text){
+
+    for(const c of COLORS){
+        if(text.includes(c)){
+            return c;
+        }
+    }
+
+    return '';
+}
+
+function detectSize(text){
+
+    for(const s of SIZES){
+
+        const regex =
+            new RegExp(`(^|\\s)${s}($|\\s)`);
+
+        if(regex.test(text)){
+            return s;
+        }
+    }
+
+    return '';
+}
+
+function detectQuantity(text){
+
+    const match =
+        text.match(/(\d+)$/);
+
+    if(match){
+        return parseInt(match[1]);
+    }
+
+    return 1;
+}
+
+function extractProductName(text,color,size){
+
+    let name = text;
+
+    if(color){
+        name = name.replace(color,'');
+    }
+
+    if(size){
+        name = name.replace(size,'');
+    }
+
+    name = name.replace(/\d+$/,'');
+    name = name.replace(/\s+/g,' ');
+
+    return name.trim();
+}
+
+function autoRotateAndProcess(imgElement){
+
+    const canvas =
+        document.createElement('canvas');
+
+    const ctx =
+        canvas.getContext('2d');
+
+    canvas.width = imgElement.width;
+    canvas.height = imgElement.height;
+
+    ctx.drawImage(imgElement,0,0);
+
+    let src = cv.imread(canvas);
+
+    if(src.rows > src.cols){
+
+        let rotated = new cv.Mat();
+
+        cv.rotate(
+            src,
+            rotated,
+            cv.ROTATE_90_CLOCKWISE
+        );
+
+        src.delete();
+        src = rotated;
+    }
+
+    let gray = new cv.Mat();
+    let blur = new cv.Mat();
+    let thresh = new cv.Mat();
+
+    cv.cvtColor(src,gray,cv.COLOR_RGBA2GRAY,0);
+
+    cv.GaussianBlur(
+        gray,
+        blur,
+        new cv.Size(3,3),
+        0
+    );
+
+    cv.adaptiveThreshold(
+        blur,
+        thresh,
+        255,
+        cv.ADAPTIVE_THRESH_GAUSSIAN_C,
+        cv.THRESH_BINARY,
+        11,
+        2
+    );
+
+    cv.imshow(canvas,thresh);
+
+    src.delete();
+    gray.delete();
+    blur.delete();
+    thresh.delete();
+
+    return canvas;
+}
+
+async function runOCR(
+    imageSource,
+    resultMap,
+    excludeRules
+){
+
+    return new Promise((resolve)=>{
+
+        const img = new Image();
+
+        img.onload = async ()=>{
+
+            const processed =
+                autoRotateAndProcess(img);
+
+            const result =
+                await Tesseract.recognize(
+                    processed,
+                    'kor+eng'
+                );
+
+            const text =
+                result.data.text;
+
+            document.getElementById('rawText')
+                .innerText +=
+                '\n====================\n' +
+                text;
+
+            const lines =
+                text.split('\n');
+
+            for(let rawLine of lines){
+
+                let line =
+                    rawLine.trim();
+
+                if(line.length < 2){
+                    continue;
+                }
+
+                if(
+                    shouldExclude(
+                        line,
+                        excludeRules
+                    )
+                ){
+                    continue;
+                }
+
+                const color =
+                    detectColor(line);
+
+                const size =
+                    detectSize(line);
+
+                const quantity =
+                    detectQuantity(line);
+
+                const productName =
+                    extractProductName(
+                        line,
+                        color,
+                        size
+                    );
+
+                if(productName.length < 2){
+                    continue;
+                }
+
+                const key =
+                    `${productName}|${color}|${size}`;
+
+                if(!resultMap[key]){
+
+                    resultMap[key] = {
+                        name:productName,
+                        color,
+                        size,
+                        quantity:0
+                    };
+                }
+
+                resultMap[key].quantity +=
+                    quantity;
+            }
+
+            resolve();
+        };
+
+        img.src = imageSource;
+    });
+}
 
 async function startOCR(){
 
-    const files = document.getElementById('imageInput').files;
+    const status =
+        document.getElementById('status');
+
+    document.getElementById('rawText')
+        .innerText = '';
 
     const excludeRules =
         document.getElementById('excludeWords')
@@ -120,133 +498,126 @@ async function startOCR(){
 
     const resultMap = {};
 
-    for(const file of files){
+    const files =
+        document.getElementById('imageInput')
+        .files;
 
-        document.getElementById('status').innerText =
-            `${file.name} OCR 진행 중`;
+    let total =
+        capturedImages.length +
+        files.length;
 
-        const result = await Tesseract.recognize(
-            file,
-            'kor+eng'
+    let current = 1;
+
+    for(const image of capturedImages){
+
+        status.innerText =
+            `OCR 진행 중 ${current}/${total}`;
+
+        await runOCR(
+            image,
+            resultMap,
+            excludeRules
         );
 
-        const text = result.data.text;
+        current++;
+    }
 
-        const lines = text.split('\n');
+    for(const file of files){
 
-        for(let line of lines){
+        status.innerText =
+            `OCR 진행 중 ${current}/${total}`;
 
-            line = line.trim();
+        const imageURL =
+            URL.createObjectURL(file);
 
-            if(line.length < 2) continue;
+        await runOCR(
+            imageURL,
+            resultMap,
+            excludeRules
+        );
 
-            let excluded = false;
-
-            for(const word of excludeRules){
-                if(line.includes(word)){
-                    excluded = true;
-                }
-            }
-
-            if(excluded) continue;
-
-            let color = '';
-
-            for(const c of COLORS){
-                if(line.includes(c)){
-                    color = c;
-                }
-            }
-
-            let size = '';
-
-            for(const s of SIZES){
-                if(line.includes(s)){
-                    size = s;
-                }
-            }
-
-            const qtyMatch = line.match(/(\d+)$/);
-
-            let qty = 1;
-
-            if(qtyMatch){
-                qty = parseInt(qtyMatch[1]);
-            }
-
-            let name = line;
-
-            if(color){
-                name = name.replace(color,'');
-            }
-
-            if(size){
-                name = name.replace(size,'');
-            }
-
-            name = name.replace(/\d+$/,'').trim();
-
-            if(name.length < 2) continue;
-
-            const key = `${name}|${color}|${size}`;
-
-            if(!resultMap[key]){
-                resultMap[key] = {
-                    name,
-                    color,
-                    size,
-                    qty:0
-                };
-            }
-
-            resultMap[key].qty += qty;
-        }
+        current++;
     }
 
     renderTable(resultMap);
 
-    document.getElementById('status').innerText =
-        '완료';
+    status.innerText = '완료';
 }
 
 function renderTable(data){
 
-    const body =
-        document.getElementById('resultBody');
+    const tbody =
+        document.querySelector(
+            '#resultTable tbody'
+        );
 
-    body.innerHTML = '';
+    tbody.innerHTML = '';
 
     let copyText = '';
 
     Object.values(data).forEach(item=>{
 
-        const tr = document.createElement('tr');
+        const tr =
+            document.createElement('tr');
 
         tr.innerHTML = `
-            <td>${item.name}</td>
-            <td>${item.color}</td>
-            <td>${item.size}</td>
-            <td>${item.qty}</td>
+        <td>
+            <input class="editInput"
+            value="${item.name}">
+        </td>
+
+        <td>
+            <input class="editInput"
+            value="${item.color}">
+        </td>
+
+        <td>
+            <input class="editInput"
+            value="${item.size}">
+        </td>
+
+        <td>
+            <input class="editInput"
+            value="${item.quantity}">
+        </td>
         `;
 
-        body.appendChild(tr);
+        tbody.appendChild(tr);
 
         copyText +=
-            `${item.name}\t${item.color}\t${item.size}\t${item.qty}\n`;
+            `${item.name}\t${item.color}\t${item.size}\t${item.quantity}\n`;
     });
 
-    document.getElementById('copyText').value =
-        copyText;
+    document.getElementById('copyText')
+        .value = copyText;
 }
 
 function copyResult(){
 
-    navigator.clipboard.writeText(
-        document.getElementById('copyText').value
-    );
+    const rows =
+        document.querySelectorAll(
+            '#resultTable tbody tr'
+        );
+
+    let result = '';
+
+    rows.forEach(row=>{
+
+        const inputs =
+            row.querySelectorAll('input');
+
+        result +=
+            `${inputs[0].value}\t` +
+            `${inputs[1].value}\t` +
+            `${inputs[2].value}\t` +
+            `${inputs[3].value}\n`;
+    });
+
+    navigator.clipboard.writeText(result);
 
     alert('복사 완료');
 }
+
 </script>
 
 </body>
