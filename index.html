@@ -1,0 +1,87 @@
+<!DOCTYPE html>
+quantity:0
+};
+}
+
+resultMap[key].quantity += quantity;
+}
+
+resolve();
+};
+
+img.src = imageSource;
+});
+}
+
+async function startOCR(){
+const status = document.getElementById('status');
+
+const excludeRules = document.getElementById('excludeWords').value.split('\n');
+const removeRules = document.getElementById('removeWords').value.split('\n');
+
+const resultMap = {};
+
+const files = document.getElementById('imageInput').files;
+
+let total = capturedImages.length + files.length;
+let current = 1;
+
+for(const image of capturedImages){
+status.innerText = `OCR 진행 중 ${current}/${total}`;
+
+await runOCR(image,resultMap,excludeRules,removeRules);
+
+current++;
+}
+
+for(const file of files){
+status.innerText = `OCR 진행 중 ${current}/${total}`;
+
+const imageURL = URL.createObjectURL(file);
+
+await runOCR(imageURL,resultMap,excludeRules,removeRules);
+
+current++;
+}
+
+renderTable(resultMap);
+
+status.innerText = '완료';
+}
+
+function renderTable(data){
+const tbody = document.querySelector('#resultTable tbody');
+
+tbody.innerHTML = '';
+
+let copyText = '';
+
+Object.values(data).forEach(item=>{
+const tr = document.createElement('tr');
+
+tr.innerHTML = `
+<td>${item.name}</td>
+<td>${item.color}</td>
+<td>${item.size}</td>
+<td>${item.quantity}</td>
+`;
+
+tbody.appendChild(tr);
+
+copyText += `${item.name}\t${item.color}\t${item.size}\t${item.quantity}\n`;
+});
+
+document.getElementById('copyText').value = copyText;
+}
+
+function copyResult(){
+const text = document.getElementById('copyText').value;
+
+navigator.clipboard.writeText(text);
+
+alert('복사 완료');
+}
+</script>
+
+</body>
+</html>
