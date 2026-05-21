@@ -2,82 +2,98 @@
 <html lang="ko">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="viewport"
+content="width=device-width, initial-scale=1.0">
 
 <title>상품 집계</title>
 
-<script async src="https://docs.opencv.org/4.x/opencv.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
+<script async
+src="https://docs.opencv.org/4.x/opencv.js"></script>
+
+<script
+src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
 
 <style>
+
+:root{
+    --bg:#f7f5ef;
+    --card:#ffffff;
+    --main:#928461;
+    --sub:#b5a98a;
+    --light:#e7e0d0;
+    --text:#2b2b2b;
+}
 
 body{
     margin:0;
     padding:14px;
-    background:#f6f7fb;
+    background:var(--bg);
     font-family:Arial,sans-serif;
-    color:#222;
+    color:var(--text);
 }
 
 .container{
     max-width:920px;
     margin:auto;
-    background:white;
-    border-radius:22px;
+    background:var(--card);
+    border-radius:24px;
     padding:18px;
-    box-shadow:0 4px 20px rgba(0,0,0,0.08);
+    box-shadow:0 4px 18px rgba(0,0,0,0.08);
 }
 
 h1{
     text-align:center;
     font-size:22px;
     margin-bottom:18px;
-    color:#444;
+    color:var(--main);
 }
 
 h3{
-    font-size:15px;
+    font-size:14px;
     margin-top:18px;
-    color:#666;
+    color:#555;
+}
+
+.cameraWrap{
+    position:relative;
 }
 
 video,img{
     width:100%;
-    border-radius:16px;
+    border-radius:18px;
+    margin-top:8px;
+    background:#ddd;
+}
+
+.cameraOff{
+
+    width:100%;
+    aspect-ratio:16/9;
+
+    background:#ece7dc;
+
+    border-radius:18px;
+
+    display:flex;
+    align-items:center;
+    justify-content:center;
+
     margin-top:8px;
 }
 
-input[type=file]{
-    width:100%;
-    padding:10px;
-    border:none;
-    border-radius:14px;
-    background:#eef2ff;
-    color:#333;
-    box-sizing:border-box;
-}
+.cameraIcon{
 
-textarea{
-    width:100%;
-    min-height:110px;
-    margin-top:8px;
-    padding:12px;
-    border:none;
-    border-radius:16px;
-    background:#f3f4f6;
-    color:#222;
-    font-size:14px;
-    box-sizing:border-box;
+    width:110px;
+    opacity:0.9;
 }
 
 button{
     width:100%;
     padding:11px;
-    margin-top:10px;
     border:none;
     border-radius:14px;
-    background:#c7d2fe;
-    color:#222;
+    background:var(--light);
+    color:var(--text);
     font-size:14px;
     font-weight:bold;
     cursor:pointer;
@@ -85,10 +101,10 @@ button{
 }
 
 button:hover{
-    opacity:0.9;
+    opacity:0.92;
 }
 
-.rowBtns{
+.row{
     display:flex;
     gap:8px;
 }
@@ -97,26 +113,84 @@ button:hover{
     flex:1;
 }
 
+input[type=file]{
+    width:100%;
+    padding:10px;
+    border:none;
+    border-radius:14px;
+    background:#f2efe7;
+    box-sizing:border-box;
+}
+
+.excludeWrap{
+    display:flex;
+    gap:8px;
+    align-items:stretch;
+}
+
+.excludeBox{
+
+    flex:1;
+    height:180px;
+    overflow-y:auto;
+    background:#f5f2eb;
+    border-radius:16px;
+    padding:10px;
+}
+
+.excludeBox textarea{
+    width:100%;
+    height:400px;
+    border:none;
+    background:transparent;
+    resize:none;
+    outline:none;
+    color:#333;
+    font-size:14px;
+    line-height:1.8;
+}
+
+.scrollBtns{
+    width:55px;
+    display:flex;
+    flex-direction:column;
+    gap:8px;
+}
+
+.scrollBtn{
+    flex:1;
+    background:var(--sub);
+    color:white;
+    font-size:18px;
+}
+
+.status{
+    margin-top:12px;
+    color:#666;
+    font-size:14px;
+    font-weight:bold;
+}
+
 table{
     width:100%;
     border-collapse:collapse;
     margin-top:18px;
     overflow:hidden;
-    border-radius:16px;
+    border-radius:18px;
 }
 
 th{
-    background:#ddd6fe;
-    color:#333;
+    background:var(--main);
+    color:white;
     padding:10px;
     font-size:14px;
 }
 
 td{
-    background:#fafafa;
+    background:#faf8f3;
     padding:8px;
     text-align:center;
-    border-bottom:1px solid #eee;
+    border-bottom:1px solid #ece7dc;
 }
 
 .editInput{
@@ -124,49 +198,17 @@ td{
     padding:7px;
     border:none;
     border-radius:10px;
-    background:#f1f5f9;
+    background:white;
     color:#222;
-}
-
-.status{
-    margin-top:10px;
-    color:#666;
-    font-size:14px;
-    font-weight:bold;
-}
-
-.rawBox{
-    background:#f8fafc;
-    padding:12px;
-    border-radius:14px;
-    margin-top:10px;
-    white-space:pre-wrap;
-    max-height:220px;
-    overflow:auto;
-    font-size:13px;
+    box-sizing:border-box;
 }
 
 canvas{
     display:none;
 }
 
-.excludeRow{
-    display:flex;
-    gap:8px;
-    align-items:stretch;
-}
-
-.sideBtns{
-    width:54px;
-    display:flex;
-    flex-direction:column;
-    gap:8px;
-}
-
-.arrowBtn{
-    flex:1;
-    font-size:18px;
-    background:#fde68a;
+.hidden{
+    display:none;
 }
 
 </style>
@@ -180,15 +222,34 @@ canvas{
 
 <h3>카메라</h3>
 
-<video id="video" autoplay playsinline></video>
+<div class="cameraWrap">
 
-<div class="rowBtns">
+<div class="cameraOff"
+id="cameraPlaceholder">
 
-<button class="smallBtn" onclick="startCamera()">
+<img
+class="cameraIcon"
+
+src="https://upload.wikimedia.org/wikipedia/commons/9/90/DaVinci_Resolve_Studio.png">
+
+</div>
+
+<video id="video"
+autoplay
+playsinline
+class="hidden"></video>
+
+</div>
+
+<div class="row">
+
+<button class="smallBtn"
+onclick="startCamera()">
 카메라 켜기
 </button>
 
-<button class="smallBtn" onclick="stopCamera()">
+<button class="smallBtn"
+onclick="stopCamera()">
 카메라 끄기
 </button>
 
@@ -211,23 +272,28 @@ accept="image/*">
 
 <h3>제외 문자</h3>
 
-<div class="excludeRow">
+<div class="excludeWrap">
+
+<div class="excludeBox"
+id="excludeScroll">
 
 <textarea id="excludeWords">※
 부가세
 택배비
 M+</textarea>
 
-<div class="sideBtns">
+</div>
 
-<button class="arrowBtn"
-onclick="moveExcludeUp()">
-↑
+<div class="scrollBtns">
+
+<button class="scrollBtn"
+onclick="scrollExclude(-80)">
+▲
 </button>
 
-<button class="arrowBtn"
-onclick="moveExcludeDown()">
-↓
+<button class="scrollBtn"
+onclick="scrollExclude(80)">
+▼
 </button>
 
 </div>
@@ -238,11 +304,8 @@ onclick="moveExcludeDown()">
 OCR 시작
 </button>
 
-<div class="status" id="status"></div>
-
-<h3>OCR 결과</h3>
-
-<div class="rawBox" id="rawText"></div>
+<div class="status"
+id="status"></div>
 
 <table id="resultTable">
 
@@ -259,29 +322,24 @@ OCR 시작
 
 </table>
 
-<h3>복사용 결과</h3>
-
-<textarea id="copyText"></textarea>
-
-<button onclick="copyResult()">
-결과 복사
-</button>
-
 </div>
 
 <script>
 
 const COLORS = [
-'블랙','화이트','그레이','차콜',
-'네이비','핑크','레드','카키',
-'브라운','베이지','아이보리'
+'블랙','화이트','그레이',
+'차콜','네이비','핑크',
+'레드','카키','브라운',
+'베이지','아이보리'
 ];
 
 const SIZES = [
-'FREE','XS','S','M','L','XL',
-'90','95','100','105','110',
-'230','235','240','245','250',
-'255','260','265','270'
+'FREE','XS','S','M','L',
+'XL','XXL','90','95',
+'100','105','110',
+'230','235','240',
+'245','250','255',
+'260','265','270'
 ];
 
 let capturedImages = [];
@@ -292,16 +350,36 @@ async function startCamera(){
     try{
 
         currentStream =
-            await navigator.mediaDevices.getUserMedia({
+            await navigator
+            .mediaDevices
+            .getUserMedia({
+
                 video:{
                     facingMode:'environment',
-                    width:{ideal:1280},
-                    height:{ideal:720}
+
+                    width:{
+                        ideal:1920
+                    },
+
+                    height:{
+                        ideal:1080
+                    }
                 }
             });
 
-        document.getElementById('video')
+        document
+            .getElementById('video')
             .srcObject = currentStream;
+
+        document
+            .getElementById('video')
+            .classList
+            .remove('hidden');
+
+        document
+            .getElementById('cameraPlaceholder')
+            .classList
+            .add('hidden');
 
     }catch(e){
 
@@ -317,23 +395,37 @@ function stopCamera(){
             .getTracks()
             .forEach(track=>track.stop());
 
-        document.getElementById('video')
+        document
+            .getElementById('video')
             .srcObject = null;
+
+        document
+            .getElementById('video')
+            .classList
+            .add('hidden');
+
+        document
+            .getElementById('cameraPlaceholder')
+            .classList
+            .remove('hidden');
     }
 }
 
 function capturePhoto(){
 
     const video =
-        document.getElementById('video');
+        document
+        .getElementById('video');
 
     if(!video.srcObject){
+
         alert('카메라 먼저 켜주세요');
         return;
     }
 
     const canvas =
-        document.getElementById('canvas');
+        document
+        .getElementById('canvas');
 
     const ctx =
         canvas.getContext('2d');
@@ -346,47 +438,24 @@ function capturePhoto(){
     const data =
         canvas.toDataURL(
             'image/jpeg',
-            0.75
+            1.0
         );
 
     capturedImages.push(data);
 
-    document.getElementById('preview')
+    document
+        .getElementById('preview')
         .src = data;
 }
 
-function moveExcludeUp(){
+function scrollExclude(amount){
 
-    const textarea =
-        document.getElementById('excludeWords');
-
-    const lines =
-        textarea.value.split('\n');
-
-    if(lines.length > 1){
-
-        lines.push(lines.shift());
-
-        textarea.value =
-            lines.join('\n');
-    }
-}
-
-function moveExcludeDown(){
-
-    const textarea =
-        document.getElementById('excludeWords');
-
-    const lines =
-        textarea.value.split('\n');
-
-    if(lines.length > 1){
-
-        lines.unshift(lines.pop());
-
-        textarea.value =
-            lines.join('\n');
-    }
+    document
+        .getElementById('excludeScroll')
+        .scrollBy({
+            top:amount,
+            behavior:'smooth'
+        });
 }
 
 function shouldExclude(text,rules){
@@ -414,7 +483,11 @@ function detectSize(text){
 
     for(const s of SIZES){
 
-        if(text.includes(s)){
+        if(
+            text.includes(` ${s} `) ||
+            text.endsWith(` ${s}`) ||
+            text.startsWith(`${s} `)
+        ){
             return s;
         }
     }
@@ -438,7 +511,11 @@ function detectQuantity(text){
     return 1;
 }
 
-function extractProductName(text,color,size){
+function extractProductName(
+    text,
+    color,
+    size
+){
 
     let name = text;
 
@@ -451,12 +528,16 @@ function extractProductName(text,color,size){
     }
 
     name = name.replace(/-?\d+$/,'');
-    name = name.replace(/\s+/g,' ');
+
+    name = name.replace(
+        /\s+/g,
+        ' '
+    );
 
     return name.trim();
 }
 
-function preprocessImage(imgElement){
+function preprocessImage(img){
 
     const canvas =
         document.createElement('canvas');
@@ -464,26 +545,33 @@ function preprocessImage(imgElement){
     const ctx =
         canvas.getContext('2d');
 
-    const scale = 0.6;
+    const scale = 1.5;
 
     canvas.width =
-        imgElement.width * scale;
+        img.width * scale;
 
     canvas.height =
-        imgElement.height * scale;
+        img.height * scale;
 
     ctx.drawImage(
-        imgElement,
+        img,
         0,
         0,
         canvas.width,
         canvas.height
     );
 
-    let src = cv.imread(canvas);
+    let src =
+        cv.imread(canvas);
 
-    let gray = new cv.Mat();
-    let thresh = new cv.Mat();
+    let gray =
+        new cv.Mat();
+
+    let blur =
+        new cv.Mat();
+
+    let thresh =
+        new cv.Mat();
 
     cv.cvtColor(
         src,
@@ -491,18 +579,28 @@ function preprocessImage(imgElement){
         cv.COLOR_RGBA2GRAY
     );
 
-    cv.threshold(
+    cv.GaussianBlur(
         gray,
+        blur,
+        new cv.Size(3,3),
+        0
+    );
+
+    cv.adaptiveThreshold(
+        blur,
         thresh,
-        150,
         255,
-        cv.THRESH_BINARY
+        cv.ADAPTIVE_THRESH_GAUSSIAN_C,
+        cv.THRESH_BINARY,
+        31,
+        15
     );
 
     cv.imshow(canvas,thresh);
 
     src.delete();
     gray.delete();
+    blur.delete();
     thresh.delete();
 
     return canvas;
@@ -524,21 +622,22 @@ async function runOCR(
                 preprocessImage(img);
 
             const result =
-                await Tesseract.recognize(
+                await Tesseract
+                .recognize(
+
                     processed,
+
                     'kor+eng',
+
                     {
+                        tessedit_pageseg_mode:6,
+
                         logger:m=>{}
                     }
                 );
 
             const text =
                 result.data.text;
-
-            document.getElementById('rawText')
-                .innerText +=
-                '\n================\n' +
-                text;
 
             const lines =
                 text.split('\n');
@@ -591,6 +690,7 @@ async function runOCR(
                 if(!resultMap[key]){
 
                     resultMap[key] = {
+
                         name:productName,
                         color,
                         size,
@@ -598,8 +698,8 @@ async function runOCR(
                     };
                 }
 
-                resultMap[key].quantity +=
-                    quantity;
+                resultMap[key]
+                    .quantity += quantity;
             }
 
             resolve();
@@ -612,20 +712,20 @@ async function runOCR(
 async function startOCR(){
 
     const status =
-        document.getElementById('status');
-
-    document.getElementById('rawText')
-        .innerText = '';
+        document
+        .getElementById('status');
 
     const excludeRules =
-        document.getElementById('excludeWords')
+        document
+        .getElementById('excludeWords')
         .value
         .split('\n');
 
     const resultMap = {};
 
     const files =
-        document.getElementById('imageInput')
+        document
+        .getElementById('imageInput')
         .files;
 
     let total =
@@ -679,69 +779,38 @@ function renderTable(data){
 
     tbody.innerHTML = '';
 
-    let copyText = '';
-
-    Object.values(data).forEach(item=>{
+    Object.values(data)
+    .forEach(item=>{
 
         const tr =
-            document.createElement('tr');
+            document
+            .createElement('tr');
 
         tr.innerHTML = `
+
         <td>
-            <input class="editInput"
-            value="${item.name}">
+        <input class="editInput"
+        value="${item.name}">
         </td>
 
         <td>
-            <input class="editInput"
-            value="${item.color}">
+        <input class="editInput"
+        value="${item.color}">
         </td>
 
         <td>
-            <input class="editInput"
-            value="${item.size}">
+        <input class="editInput"
+        value="${item.size}">
         </td>
 
         <td>
-            <input class="editInput"
-            value="${item.quantity}">
+        <input class="editInput"
+        value="${item.quantity}">
         </td>
         `;
 
         tbody.appendChild(tr);
-
-        copyText +=
-            `${item.name}\t${item.color}\t${item.size}\t${item.quantity}\n`;
     });
-
-    document.getElementById('copyText')
-        .value = copyText;
-}
-
-function copyResult(){
-
-    const rows =
-        document.querySelectorAll(
-            '#resultTable tbody tr'
-        );
-
-    let result = '';
-
-    rows.forEach(row=>{
-
-        const inputs =
-            row.querySelectorAll('input');
-
-        result +=
-            `${inputs[0].value}\t` +
-            `${inputs[1].value}\t` +
-            `${inputs[2].value}\t` +
-            `${inputs[3].value}\n`;
-    });
-
-    navigator.clipboard.writeText(result);
-
-    alert('복사 완료');
 }
 
 </script>
